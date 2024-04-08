@@ -11,7 +11,7 @@ const router = (0, express_1.default)(); //router 선언
 const dbPool = require("./dbConn");
 // 쿼리가 완료 되면 자동 Connection is automatically released when query resolves 된다고 확인했음
 // 추후 문제 생겼을 경우 확인 해 봐야 됨
-const setGamePlay = "call set_gamePlay(?" + ",?".repeat(25) + ")";
+const setGamePlay = "call set_gamePlay(?" + ",?".repeat(26) + ")";
 const getGamePlay = "call get_gamePlay(?,?)";
 // json 데이터로 해서 가져 오도록 되어 있다 배열로 typescript 는 배열로 선언 되어 있다
 router.get('/:gubun', async (req, res) => {
@@ -60,6 +60,7 @@ router.post('/', async (req, res) => {
     const redTeamKillArray = req.body.redTeam.teamKillNum.join('##'); //VARCHAR(100),		#블루팀 킬
     const redTeamDeathArray = req.body.redTeam.teamDeathNum.join('##'); //VARCHAR(100),		#블루팀 데스
     const redTeamAssArray = req.body.redTeam.teamAssNum.join('##'); //VARCHAR(100),		#블루팀 어시    
+    const gameRs = req.body.gameRs ? 'Y' : 'N'; // 결과 입력 구분 Y 결과입력 N 경기만 입력
     const redAllPoint = 0; //#레드총합계점수
     const gameDate = req.body.gameInfo.gameDate; //#경기날짜
     const gameTime = req.body.gameInfo.GameTime; //CHAR(2),		#경기시간
@@ -100,12 +101,12 @@ router.post('/', async (req, res) => {
     
         para_gubun		VARCHAR(10)
          */
-    await dbPool.execute(setGamePlay, [gtdIdx, gwdSetNo, blueTeamCode, blueTeamName, blueTeamUserArray,
-        blueTeamPositionArray, blueTeamChampArray, blueTeamKillArray, blueTeamDeathArray, blueTeamAssArray,
-        blueAllPoint, redTeamCode, redTeamName, redTeamUserArray, redTeamPositionArray,
-        redTeamChampArray, redTeamKillArray, redTeamDeathArray, redTeamAssArray, redAllPoint,
-        gameDate, gameTime, arrayCount, '', `${JSON.stringify(req.body)}`,
-        'post'], function (err, results) {
+    await dbPool.execute(setGamePlay, [gtdIdx, gwdSetNo, gameRs, blueTeamCode, blueTeamName,
+        blueTeamUserArray, blueTeamPositionArray, blueTeamChampArray, blueTeamKillArray, blueTeamDeathArray,
+        blueTeamAssArray, blueAllPoint, redTeamCode, redTeamName, redTeamUserArray,
+        redTeamPositionArray, redTeamChampArray, redTeamKillArray, redTeamDeathArray, redTeamAssArray,
+        redAllPoint, gameDate, gameTime, arrayCount, '',
+        `${JSON.stringify(req.body)}`, 'post'], function (err, results) {
         //console.log(results[0]); // results contains rows returned by server
         //console.log(fields); // fields contains extra meta data about results, if available
         // If you execute same statement again, it will be picked from a LRU cache

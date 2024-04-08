@@ -96,8 +96,8 @@ const GameTitle = () => {
   const saveGroupMutation = useMutation({
     mutationFn: (param:ModelGameTitleInput) => {
       //return updateGroupApi(gameTitle, done, gubun);
-      //const response = axios.post(`${process.env.REACT_APP_API_ROOT}/api/gameTitle`, param);
-      const response = axios.post('http://106.250.183.138:3040/api/gameTitle', param);
+      const response = axios.post(`${process.env.REACT_APP_API_ROOT}/api/gameTitle`, param);
+      //const response = axios.post('http://106.250.183.138:3040/api/gameTitle', param);
       return response;      
     },
     onSuccess: (res) => {

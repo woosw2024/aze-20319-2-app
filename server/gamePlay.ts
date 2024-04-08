@@ -7,7 +7,7 @@ const dbPool = require("./dbConn");
 
 // 쿼리가 완료 되면 자동 Connection is automatically released when query resolves 된다고 확인했음
 // 추후 문제 생겼을 경우 확인 해 봐야 됨
-const setGamePlay = "call set_gamePlay(?"+",?".repeat(25)+")";
+const setGamePlay = "call set_gamePlay(?"+",?".repeat(26)+")";
 const getGamePlay = "call get_gamePlay(?,?)";
 
 
@@ -70,6 +70,7 @@ router.post('/', async (req:Request,res:Response) => {
     const redTeamKillArray = req.body.redTeam.teamKillNum.join('##')	//VARCHAR(100),		#블루팀 킬
     const redTeamDeathArray = req.body.redTeam.teamDeathNum.join('##')	//VARCHAR(100),		#블루팀 데스
     const redTeamAssArray = req.body.redTeam.teamAssNum.join('##')	//VARCHAR(100),		#블루팀 어시    
+    const gameRs = req.body.gameRs ? 'Y' : 'N'	// 결과 입력 구분 Y 결과입력 N 경기만 입력
     
     
     const redAllPoint = 0  //#레드총합계점수
@@ -115,12 +116,12 @@ para_gtdIdx		BIGINT,		#대회상세정보
      */
     await dbPool.execute(
       setGamePlay,
-        [gtdIdx, gwdSetNo, blueTeamCode, blueTeamName, blueTeamUserArray, 
-          blueTeamPositionArray, blueTeamChampArray, blueTeamKillArray, blueTeamDeathArray,  blueTeamAssArray,
-          blueAllPoint, redTeamCode, redTeamName, redTeamUserArray, redTeamPositionArray,
-	        redTeamChampArray, redTeamKillArray, redTeamDeathArray, redTeamAssArray, redAllPoint, 
-          gameDate, gameTime, arrayCount, '', `${JSON.stringify(req.body)}`,
-          'post'],
+        [gtdIdx, gwdSetNo, gameRs, blueTeamCode, blueTeamName, 
+          blueTeamUserArray, blueTeamPositionArray, blueTeamChampArray, blueTeamKillArray, blueTeamDeathArray,  
+          blueTeamAssArray, blueAllPoint, redTeamCode, redTeamName, redTeamUserArray, 
+          redTeamPositionArray, redTeamChampArray, redTeamKillArray, redTeamDeathArray, redTeamAssArray, 
+          redAllPoint, gameDate, gameTime, arrayCount, '', 
+          `${JSON.stringify(req.body)}`,'post'],
         function(err:Error, results:any) {
           //console.log(results[0]); // results contains rows returned by server
           //console.log(fields); // fields contains extra meta data about results, if available
