@@ -66,7 +66,13 @@ export default function App() {
                     }} */
                     onChange={(option, action) => {
 
+
                       const selectedValues = option.map((v) => v.value);
+                      if(action.action==="remove-value") {
+                        console.log("remove-value:"+option);
+                      }       
+                      
+                      console.log(action)
                       
                       //console.log(value.entries()); 이거 안됨
 /*                       console.log(JSON.stringify(value));
@@ -80,6 +86,8 @@ export default function App() {
                       }) */
 
                       //모두 true 만든 후에 다시 disabled 한다
+                      //오류 모드다 false를 하면 안된다 여러개라 여러 군데에서 사용 해야 된다
+                      //A만 사용 하면 되는데 B에서 또 호출 하면 또 다 false가 되어 버린다
                       selecColor.map((e) => {e.isDisabled = false})
                       selecColor.map((e) => {
                         option.map((v) => {

@@ -1,4 +1,5 @@
 
+import { isDisabled } from '@testing-library/user-event/dist/utils';
 //team data 등록시
 export type gameTimeRegister = {
   gtdIdx:number;
@@ -21,17 +22,27 @@ export type teamData = {
 }
 
 
-// 팀등록시 teamData 참조
+// 팀 등록시 teamData 참조
 export type gameTeamData = {
   userIdx: string;
   lolNick: string;
   bossFlag: string;
   userPoint: number;
-  label?:string;
-  value?:string;
+  label:string;
+  value:string;
+  isDisabled:boolean;
 }
 
-export type gameTeamCode = Omit<gameTeamList,'lolNick'>
+//경기결과 입력시 팀목록
+export type gameTeamListSelectBox = {
+  teamName:string;
+  teamCode:string;
+  label:string;
+  value:string;
+  isDisabled:boolean;
+}
+
+//export type gameTeamCode = Omit<gameTeamList,'lolNick'>
 
 
 

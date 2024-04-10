@@ -1,16 +1,16 @@
-import React, {useState, useRef } from 'react'
+import React, {useState, useRef, useEffect } from 'react'
 import { Accordion, Button, Col, Container, Form, InputGroup, ListGroup, Row } from 'react-bootstrap'
 import { ModelGameTitle, ModelGameTitleDetail } from '../../model/MgameTitle';
 import { gameChampList, positionData } from '../../model/MgameDefaultData';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import axios from 'axios';
-import { gameTeamCode, gameTeamData } from '../../model/MGameTeam';
+import { gameTeamData, gameTeamListSelectBox } from '../../model/MGameTeam';
 import DatePicker from 'react-datepicker';
 import {ko} from 'date-fns/locale/ko';
 import dayjs from 'dayjs';
 import Select from 'react-select';
-import { isDisabled } from '@testing-library/user-event/dist/utils';
+
 
 
 /* interface testData {
@@ -48,7 +48,7 @@ type gamePlaySubmit = {
 }
 
 type TeamDetail = {
-  teamCode:number;
+  teamCode:string;
   teamName:string;    
   teamUser:string[];
   teamPositon:string[];
@@ -59,6 +59,13 @@ type TeamDetail = {
   champEng:string[];  
   banChamp:string[];
   penaltyChamp:string[];
+  teamMvp:string;
+}
+
+//기본값 셋팅
+const teamDefaultValue = {
+  teamCode:'', teamName:'', teamUser:[], teamPositon:[], teamCheckbox:[], teamKillNum:[], 
+  teamDeathNum:[], teamAssNum:[], champEng:[], banChamp:[], penaltyChamp:[], teamMvp:''
 }
 
 type gamePlayList = {
@@ -68,8 +75,8 @@ type gamePlayList = {
   gwdSetNo:number , 
   redTeamName:string,
   blueTeamName:string,
-  redTeamCode:number,
-  blueTeamCode:number,
+  redTeamCode:string,
+  blueTeamCode:string,
   redTeamAllPoint:number,
   blueTeamAllPoint:number,			
   redTeamUser:string,
@@ -84,12 +91,14 @@ type gamePlayList = {
 //A,B  A,D 팀이 등록 할때 A 팀은 중복 등록이 된다 이때 시간을 바꿔 주면 되나???
 const GamePlay = () => {
   
+
   //const queryClient = useQueryClient();   
   //useState 무조건 써야 되나 ?  이것도 hook form Controll을 이용 해보자
   const [startDate, setStartDate] = useState<Date | null>(new Date()); //TODO 달력 사용 이방법 밖에 없나???
   //const [titleSelected, setTitleSelected] = useState<string>('');
   const titleSelected = useRef<string>();
-  
+
+  //const selectRef = useRef()
   console.log("===GamePlay 랜더링===")
   
 
@@ -102,9 +111,9 @@ const GamePlay = () => {
     // default 로 주니깐 value가 안바뀜 gameDate:dayjs(startDate).format('YYYY-MM-DD')
     defaultValues: {
       gameInfo:{gtdIdx : 0, gtdTitle:'', gtIdx :0, setNum:'1', GameTime:'18', gameDate:dayjs(startDate).format('YYYY-MM-DD'), gameRs:false}, 
-      blueTeam:{teamCode:0, teamName:'', teamUser:[], teamPositon:[], teamCheckbox:[], teamKillNum:[], teamDeathNum:[], teamAssNum:[], champEng:[], banChamp:[], penaltyChamp:[]}, 
-      redTeam:{teamCode:0, teamName:'', teamUser:[], teamPositon:[], teamCheckbox:[], teamKillNum:[], teamDeathNum:[], teamAssNum:[], champEng:[], banChamp:[], penaltyChamp:[]}, 
-      //gameDate:dayjs(startDate).format('YYYY-MM-DD')
+      blueTeam:teamDefaultValue, redTeam:teamDefaultValue
+      //blueTeam:{teamCode:'0', teamName:'', teamUser:[], teamPositon:[], teamCheckbox:[], teamKillNum:[], teamDeathNum:[], teamAssNum:[], champEng:[], banChamp:[], penaltyChamp:[], teamMvp:''}, 
+      //redTeam:{teamCode:'0', teamName:'', teamUser:[], teamPositon:[], teamCheckbox:[], teamKillNum:[], teamDeathNum:[], teamAssNum:[], champEng:[], banChamp:[], penaltyChamp:[], teamMvp:''}, 
     } 
   });  
 
@@ -147,6 +156,7 @@ const GamePlay = () => {
     enabled:false
     //queryFn:getGameTitle
   });  
+  
 
 
  //선택한 대회에 등록된 팀 목록 가져 온다  
@@ -154,7 +164,7 @@ const GamePlay = () => {
   //typescript 제네릭으로 선언 되면 변경 할 수 없고 해당 타입만 와야 된다
   //TODO 이게 외 3번이 로딩 되지 여기 GameTeam 컴포넌트도 3번 랜더링 된다 머지 이거
   //블루, 레드 팀목록 selectbox 데이터 불러 오는거
-  const {data:gameTeamDataList, refetch:teamReftch} = useQuery<gameTeamCode[]>({
+  const {data:gameTeamDataList, refetch:teamReftch} = useQuery<gameTeamListSelectBox[]>({
     queryKey:['teamCode'], 
     queryFn: async () => {
         const gtdIdxVal = getValues('gameInfo.gtdIdx');
@@ -164,7 +174,8 @@ const GamePlay = () => {
         return resp.data; 
     },    
     retry : 3, //실패시 3번만 실행 하게 한다
-  });   
+    enabled:false
+  }); 
 
 
   //블루팀 선택시 팀원 목록 가져 오기 한번에 가져 와서 컨트롤 하면 되지 않을까????
@@ -181,11 +192,12 @@ const GamePlay = () => {
         return resp.data; 
     },    
     retry : 3, //실패시 3번만 실행 하게 한다
-    //enabled : false
+    enabled : false
   });   
 
   //if(blueTeamisLoading) console.log('로딩');
   if(blueTeamIsReftch) console.log('리로딩');
+
   //레드팀 선택 시
   const {data:gameRedTeamList, refetch:redTeamReftch, isRefetching:redTeamIsReftch} = useQuery<gameTeamData[]>({
     queryKey:['redTeamCode'],  //TODO  사용용도 한번더 체크 해보기
@@ -220,16 +232,19 @@ const GamePlay = () => {
     //console.log("blueTeam.teamUser");
     teamReftch();// 팀목록도 리셋    
     gameTeamPlayReftch(); //등록된 경기 내용도 리셋
-    blueTeamReftch(); //블루팀 원 초기화
-    redTeamReftch(); //레드팀 원 초기화       
+    blueTeamReftch(); //블루팀원 초기화
+    redTeamReftch(); //레드팀원 초기화       
+
   }
   //대회명을 선택 하면 상세 정보를 가져 오게 한다
   // TODO selectbox 선택 시 선택 한 text가져 오는거 만들어야 됨
   const gtIdxChange = (e:React.ChangeEvent<HTMLSelectElement>) => {
     setValue('gameInfo.gtIdx', parseInt(e.target.value));
     //gtdIdx 는 기존에 값을 가지고 있어서 초기화 시켜 준다
-    setValue('gameInfo.gtdIdx',0); //이걸 해 줘야 화면이 초기화 된다
-    setValue('gameInfo.gtdTitle',''); //이걸 해 줘야 화면이 초기화 된다
+    resetField('gameInfo.gtdIdx')
+    resetField('gameInfo.gtdTitle')
+    //setValue('gameInfo.gtdIdx',0); //이걸 해 줘야 화면이 초기화 된다
+    //setValue('gameInfo.gtdTitle',''); //이걸 해 줘야 화면이 초기화 된다
     detailRefetch(); // 대회 상세 명 useQuery  enabled 된걸 작동 시키게 한다
     teamInfoReset();//경기 정보 리셋
   }
@@ -247,80 +262,32 @@ const GamePlay = () => {
       titleSelected.current = '';
       //setTitleSelected('');      
     }
+    teamInfoReset();  //팀, 챔프 를 모드 리셋
 
-    teamInfoReset();  //경기 정보 리셋
-    gameTeamPlayReftch(); //경기내용리셋
   }  
 
-  //블루팀 select Change 선택시
-  const blueTeamCodeChange = (e:React.ChangeEvent<HTMLSelectElement>) => {
+  //블루팀 모든 정보 초기화 select Change => 이거 사용 안할꺼 같다
+  const blueTeamCodeChange = (teamName:string, teamCode:string) => {
     //console.log(e.target.value);
-    const blueTeamName = e.target.options[e.target.selectedIndex].text;
-    const redTeamCode = getValues("redTeam.teamCode").toString();
-    const blueTeamCode = e.target.value.toString();    
-    if(parseInt(e.target.value) !==0 && redTeamCode === blueTeamCode) {
-      alert('레드팀에 '+blueTeamName+' 선택 되어 있습니다.');
-      setValue('blueTeam.teamCode', 0); //값을 셋팅 한다
-      return false;
-    }
-
-/*     setValue('blueTeam',{
-      teamUser: [],
-      teamCode: parseInt(e.target.value),
-      teamName: blueTeamName,
-      teamPositon:[],
-      teamCheckbox:[],
-      teamKillNum:[],
-      teamDeathNum:[],
-      teamAssNum:[],
-      champEng:[]
-    }); //이걸 해 줘야 화면이 초기화 된다 */
+    //const blueTeamName = e.target.options[e.target.selectedIndex].text;
     unregister('blueTeam')  //이걸 하면 Controll 에 value 값이 초기화
-    
-    setValue('blueTeam.teamCode', parseInt(e.target.value)); //값을 셋팅 한다
-    setValue('blueTeam.teamName', blueTeamName);
+    //reset('blueTeam.banChamp')
+    setValue('blueTeam.teamCode', teamCode); //값을 셋팅 한다
+    setValue('blueTeam.teamName', teamName);
     //console.log(getValues('blueTeam'))
     //선택한 팀원 목록을 가져 오도록 한다
     //prevBlueSelectBox.current = parseInt(e.target.value);
     blueTeamReftch();
-
+    //selectRef.current.select.clearValue();
     //text 가져 오는거 console.log(e.target.options[e.target.selectedIndex].text);
   }  
 
-  //레드팀 선택시
-  const redTeamCodeChange = (e:React.ChangeEvent<HTMLSelectElement>) => {
-    //e.preventDefault();
-    //console.log(e.currentTarget.value);
-    const redTeamName = e.target.options[e.target.selectedIndex].text;
-    // console.log(typeof(getValues("blueTeamCode")))
-    // console.log(typeof(e.target.value))
-    const blueTeamCode = getValues("blueTeam.teamCode").toString();
-    const redTeamCode = e.target.value.toString();
-    if(parseInt(e.target.value) !==0 && redTeamCode === blueTeamCode) {
-      alert('블루팀에 '+redTeamName+' 선택 되어 있습니다.');
-      //unregister('redTeam.teamCode')
-      setValue('redTeam.teamCode', getValues('redTeam.teamCode')); //값을 셋팅 한다
-      return false;
-    } 
-/*  
-    이것도 먹는다
-     reset({
-      redTeam : {
-        teamUser: [],
-        teamPositon:[],
-        teamCheckbox:[],
-        teamKillNum:[],
-        teamDeathNum:[],
-        teamAssNum:[],
-        champEng:[]
-    }
-    }); //이걸 해 줘야 화면이 초기화 된다 */
-    //unregister('redTeam')  //이걸 하면 Controll 에 value 값이 초기화    
-    setValue('redTeam.teamCode', parseInt(e.target.value)); //값을 셋팅 한다
-    setValue('redTeam.teamName', redTeamName);
-    //prevRedSelectBox.current = parseInt(e.target.value);
+  //레드팀 선택시 이제는 disabled가 되어서 
+  const redTeamCodeChange = (teamName:string, teamCode:string) => {
+    //const redTeamName = e.target.options[e.target.selectedIndex].text;
+    setValue('redTeam.teamCode', teamCode); //값을 셋팅 한다
+    setValue('redTeam.teamName', teamName);
     redTeamReftch();
-    //text 가져 오는거 console.log(e.target.options[e.target.selectedIndex].text);
   }  
 
 /*   const blueTeamChecked = (e:React.ChangeEvent<HTMLInputElement>) => {
@@ -330,7 +297,8 @@ const GamePlay = () => {
   //정보 저장 하는거 useForm 에 저장 해 두면 한번에 submit로 보낼 수 있구나
   const onSubmitHandlerDetail = (data:gamePlaySubmit) => { 
 
-    console.log(data);
+    console.log("blueTeam:"+JSON.stringify(data.blueTeam));
+    console.log("redTeam:"+JSON.stringify(data.redTeam));
     //resetField('redTeam', {keepDirty:true})
     if(data.gameInfo.gtIdx === 0){
       alert('대회명을 선택 하세요!');
@@ -350,13 +318,14 @@ const GamePlay = () => {
       return;
     }
 
-    if(data.blueTeam.teamCode <= 0){
+    //console.log('blueTeam.teamCode'+data.blueTeam.teamCode);
+    if(data.blueTeam.teamCode === ''){
       alert('블루팀을 선택 하세요.');
       setFocus('blueTeam.teamCode');
       return;
-    }    
+    }
     
-    const blueUserCount = getValues('blueTeam.teamUser').filter((e) => e!=='').length
+    const blueUserCount = getValues('blueTeam.teamUser').filter((e) => e!=null).length
     //선수 선택 수
     //if(data.blueTeam.teamUser.length < 5){
     if(blueUserCount < 5){
@@ -364,13 +333,13 @@ const GamePlay = () => {
       return;
     } 
 
-    if(data.redTeam.teamCode <= 0){
+    if(data.redTeam.teamCode === ''){
       alert('레드팀을 선택 하세요.');
       setFocus('redTeam.teamCode');
       return;
     }    
     
-    const redUserCount = getValues('redTeam.teamUser').filter((e) => e!=='').length        
+    const redUserCount = getValues('redTeam.teamUser').filter((e) => e!=null).length        
     if(redUserCount < 5){
       alert('레드팀 출전 선수 최소 5명은 선택 하세요.');
       return;
@@ -379,15 +348,15 @@ const GamePlay = () => {
 
     //경기결과 체크에 따라 입력값 체크 한다
     if(isRsChecked) {
-      const blueChampCount = getValues('blueTeam.champEng').filter((e) => e!=='').length
+      const blueChampCount = getValues('blueTeam.champEng').filter((e) => e!=null).length
       //챔프 선택 수
       if(data.blueTeam.champEng.length < 5){
       //if(blueChampCount < 5){
         alert('블루팀 챔프는 최소 5개 입니다.');
         return;
-      } 
+      }
 
-      const redChampCount = getValues('redTeam.champEng').filter((e) => e!=='').length    
+      const redChampCount = getValues('redTeam.champEng').filter((e) => e!=null).length    
       //챔프 선택 수
       if(redChampCount < 5){
         alert('레드팀 챔프는 최소 5개 입니다.');
@@ -456,9 +425,10 @@ const GamePlay = () => {
           gameTeamPlayReftch(); //경기 등록 정보 리셋
         }
           // 선택된 정보 초기화
-          reset({
+        reset({blueTeam:teamDefaultValue, redTeam:teamDefaultValue});
+          /* reset({
             blueTeam : {
-            teamCode:0,
+            teamCode:'0',
             teamName:'',
             teamUser:[],
             teamPositon:[],
@@ -471,7 +441,7 @@ const GamePlay = () => {
             penaltyChamp:[]
           },
           redTeam : {
-            teamCode:0,
+            teamCode:'0',
             teamName:'',
             teamUser:[],
             teamPositon:[],
@@ -483,7 +453,7 @@ const GamePlay = () => {
             banChamp:[],
             penaltyChamp:[]           
           }    
-        });
+        }); */
         alert("등록 완료 되었습니다.");
         return;
       } 
@@ -501,6 +471,27 @@ const GamePlay = () => {
     return result;
   };
 
+
+
+  //선택한 챔프 disabled
+  const selectDisabled = (item:string|undefined, isDisabled:boolean,  gubun:string) => {
+
+    if (gubun === "champ") gameChampList?.map((e) => {if(e.value===item)  e.isDisabled=isDisabled})   
+    if (gubun === "team") gameTeamDataList?.map((e) => {if(e.teamCode===item)  e.isDisabled=isDisabled})
+      
+  }   
+
+  //첫 로딩시 모두 초기화
+  useEffect(()=>{
+    detailRefetch(); // 대회 상세 명 useQuery  enabled 된걸 작동 시키게 한다
+    teamInfoReset();//경기 정보 리셋    
+    gameChampList.map((e) => {e.isDisabled = false})
+  },[])  
+
+/*   //선택한 팀 disabled
+  const selectTeamDisabled = (item:string|undefined, isDisabled:boolean) => {
+    gameTeamDataList?.map((e) => {if(e.value===item)  e.isDisabled=isDisabled})   
+  }   */
 /*   const aaaaa = (e:React.ChangeEvent<HTMLInputElement>, i:number) => {
     setValue(`blueTeam.teamCheckbox.${i}`, e.target.checked.toString());
   } */
@@ -535,43 +526,46 @@ const GamePlay = () => {
               </Form.Group> 
             </Row>
             
-            <Row className="mb-3">
+            <Row className="mb-3 mt-3">
               <Row>
-                <Form.Group as={Col} controlId="formGridSetNum">
-                  <Form.Label column="lg" lg={7}>게임 세트</Form.Label>
+                <Form.Group as={Row} controlId="formGridGameDate">
+                  <Form.Label column sm="1">경기날짜</Form.Label>
+                  {/* //TODO hook form Controll 사용 해 보기 */}
+                  <Col sm="3">
+                    <DatePicker 
+                      {...register("gameInfo.gameDate")}  
+                      showIcon
+                      selected={startDate}
+                      dateFormat="YYYY-MM-dd" 
+                      locale={ko}
+                      onKeyDown={e => e.preventDefault()}
+                      onChange={(data:Date) => setStartDate(data)} />
+                      {/* onChange={(data:Date) => setValue('gameInfo.gameDate', data.toString())} /> 이거 안됨 */}
+                    </Col>                    
+                  <Form.Label column sm="1">경기시간</Form.Label>  
+                  <Col sm="2">
+                    <Form.Select {...register("gameInfo.GameTime")}>
+                      <option key={1} value="18">오후 6시</option>
+                      <option key={2} value="19">오후 7시</option>
+                      <option key={3} value="20">오후 8시</option>
+                      <option key={4} value="21">오후 9시</option>
+                      <option key={5} value="22">오후 10시</option>
+                      <option key={6} value="23">오후 11시</option>
+                    </Form.Select>  
+                  </Col>                
+                  <Form.Label column sm="1">게임 세트</Form.Label>
+                  <Col sm="2">
                   <Form.Select {...register("gameInfo.setNum")}>
                     <option key={1} value={1}>1 SET</option>
                     <option key={2} value={2}>2 SET</option>
                     <option key={3} value={3}>3 SET</option>
                   </Form.Select>  
+                  </Col>                  
                 </Form.Group>                 
-                <Form.Group as={Col} controlId="formGridGameDate">
-                  <Form.Label column="lg" lg={7}>경기날짜</Form.Label>
-                  {/* //TODO hook form Controll 사용 해 보기 */}
-                  <DatePicker 
-                    {...register("gameInfo.gameDate")}  
-                    showIcon
-                    selected={startDate}
-                    dateFormat="YYYY-MM-dd" 
-                    locale={ko}
-                    onKeyDown={e => e.preventDefault()}
-                    onChange={(data:Date) => setStartDate(data)} />
-                </Form.Group>
-                <Form.Group size="sm" as={Col} controlId="formGridGameTime">
-                  <Form.Label column="lg" lg={7}>경기시간</Form.Label>
-                  <Form.Select {...register("gameInfo.GameTime")}>
-                    <option key={1} value="18">오후 6시</option>
-                    <option key={2} value="19">오후 7시</option>
-                    <option key={3} value="20">오후 8시</option>
-                    <option key={4} value="21">오후 9시</option>
-                    <option key={5} value="22">오후 10시</option>
-                    <option key={6} value="23">오후 11시</option>
-                  </Form.Select>  
-                </Form.Group>
               </Row>
-              <Row>
-                <div>동일한 경기날짜,세트,경기시간에 같은 팀은 입력 되지 않습니다.</div>
-                <div>게임세트 3SET 일 경우 입력 완료 후 팀 선택은 초기화 됩니다.</div>
+              <Row className="mt-2">
+                <div>* 동일한 경기날짜,세트,경기시간에 같은 팀은 입력 되지 않습니다.</div>
+                <div>* 게임세트 3SET 일 경우 입력 완료 후 팀 선택은 초기화 됩니다.</div>
               </Row>
             </Row>
 
@@ -582,26 +576,91 @@ const GamePlay = () => {
                   type="switch"
                   id="geamRs"
                   label="경기결과 입력 (경기결과 입력을 원하시면 선택 하세요)"
-                  {...register(`gameInfo.gameRs`,{value:false})}
+                  {...register(`gameInfo.gameRs`, {
+                      value:false,
+                      onChange: (e) => {
+                        //팀별 챔프 정상화 시켜야 됨
+                        //MVP 원복
+                        //킬 데스 어시 원복
+                        if(!e.target.checked) {
+                          resetField('redTeam.champEng')    //레드 챔프초기화
+                          resetField('redTeam.teamMvp')    //레드 mvp 초기화
+                          resetField('redTeam.teamKillNum') //레드 킬 초기
+                          resetField('redTeam.teamAssNum')  //레드 어시 초기
+                          resetField('redTeam.teamDeathNum')  //레드 데스 초기                          
+
+                          resetField('blueTeam.champEng')    //블루 챔프초기화
+                          resetField('blueTeam.teamMvp')    //블루 mvp 초기화
+                          resetField('blueTeam.teamKillNum') //블루 킬 초기
+                          resetField('blueTeam.teamAssNum')  //블루 어시 초기
+                          resetField('blueTeam.teamDeathNum')  //블루 데스 초기
+                          //챔프는 화면에서 초기화가 안된다 해결 방법 찾아야 되는데 큰일이네
+                        }
+
+                        console.log(e.target.checked)
+                      }
+                    })}
                 />        
               </Col> 
             </Row>
-            {/* 레드 블루팀 선택 */}
             <Row className="mb-3">
+              {/* 블루팀 시작 */}
               <Col>
-                <h3 className="text-center">블루팀</h3>
+                {/* 블루 팀 선택 */}
                 <Form.Group controlId="formGridBlueTeamCode">
-                  <Form.Select {...register("blueTeam.teamCode")} id="formGridBlueTeamCode" onChange={blueTeamCodeChange}>
-                  <option key={0} value={0}>블루팀 을 선택 하세요</option>            
-                  {
-                    gameTeamDataList?.map((item, index) => (
-                      <option key={index} value={item.teamCode}>{item.teamName}</option>
-                    ))
-                  }
-                  </Form.Select>
+                  <Controller
+                    control={control}
+                    name="blueTeam.teamCode"
+                    render={({ field: { onChange, value, ref, name } }) => (  
+                      <Select
+                        name="formGridBlueTeamCode"
+                        options={gameTeamDataList}
+                        styles={{
+                          container: (base) => ({
+                            ...base,
+                            backgroundColor: "#0052CC",
+                            padding: 2,
+                          }),
+                        }}          
+                        // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
+                        ref={ref}
+                        placeholder="블루 팀 선택"
+                        getOptionValue={(option) => option.teamCode} // changes here!!! 
+                        value={gameTeamDataList?.filter((v) => v.teamCode === value)} //이건 어따 쓰는거지 초기화 안되는구나?
+                        onChange={(option, action) => {
+                        
+                          //const blueTeamChamp = getValues("blueTeam.champEng")
+                          //아이템 선택
+                          //VALUE 이렇게 넘어 온다 mariadb 에는 VALUE가 대문자로 넘어 온다 어쩔 수 없이 다른거랑 비교를 한다
+                          //console.log("action:"+JSON.stringify(action));
+                          //console.log("value:"+value); //이전에 선택된 값을 가지고 있는다
+                          //console.log("option:"+JSON.stringify(option));
+                          if(action.action==="select-option") {
+                            //console.log("option-value:"+option?.teamCode)
+                            //gameTeamDataList?.map((e) => {if(e.teamCode===option?.teamCode)  console.log(option?.value)})
+                            selectDisabled(value, false, 'team')
+                            selectDisabled(option?.teamCode, true, 'team')
+                            //console.log(gameTeamDataList);                            
+                          }
+
+                          //액션이 클리어면 초기화                                        
+                          if(action.action === 'clear') {
+                            selectDisabled(action.removedValues[0].teamCode, false, 'team')                                        
+                            //return false
+                          }          
+                          const teamName = option?.teamName===undefined?'':option?.teamName
+                          const teamCode = option?.teamCode===undefined?'':option?.teamCode
+                          blueTeamCodeChange(teamName, teamCode)
+                          //onChange(option?.teamCode)
+   
+                        }}
+                      />
+                    )}
+                  />
                 </Form.Group>  
-                <Form.Group controlId="formGridBlueBanChamp" className="mt-1"> 
-                  <Form.Label> 밴 챔프</Form.Label>
+                {/* 블루 팀 밴 */}
+                <Form.Group controlId="formGridBlueBanChamp" className="mt-2"> 
+                  <Form.Label>밴 챔프</Form.Label>
                   {/* //TODO Select 상호 작용 레드랑 같이 되는지 체크 하기 블루에서 A를 고르면 레드에서는 A를 못 고르게(반대상황도 물론 필요) */}
                   {/* //TODO 선택 하면 다른팀 데이터도 같이 disabled 가능 한지 확인 */}
                   <Controller
@@ -616,50 +675,48 @@ const GamePlay = () => {
                         styles={{
                           container: (base) => ({
                             ...base,
+                            background: "white",
                             backgroundColor: "#0052CC",
                             padding: 2,
                           }),
                         }}          
-                        
                         // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
                         ref={ref}
-                        placeholder="블루 밴 챔프 선택"
-                        value={gameChampList?.filter((option) =>getValues('blueTeam.banChamp').includes(option.value))}
-                        onChange={(option) => {
-                          
+                        placeholder="블루 밴 챔프 선택"  
+                        onChange={(option, action) => {
+                          //console.log(value);
+                          //TODO 선택을 하면 3 2 1 이 되어야 되는데 1 2 3 으로 자꾸 변한다
+                          //챔피언 목록을 별도로 json으로 넣어둠
 
+                          //console.log(getValues('blueTeam.banChamp').filter((v) => v!==''));
+                          //const aaaa = gameChampList?.filter((option) => value.includes(option.value));
+                          //gameChampList?.filter((option) =>getValues('redTeam.banChamp')?.includes(option.value))
+                          //console.log("aaaa:"+JSON.stringify(aaaa));
+                          //value는 컨트롤에서 전달 받는 값으로 선택 한 값 뺴고 이전값을 가져 온다
+                          const selectedValues = option?.map((v) => v.value)                            
 
+                          if(action.action==="remove-value") {
+                            //이건 삭제시 본인것만 푼다
+                            selectDisabled(action.removedValue.value, false,'champ')
+                          }
+                          if(action.action==="select-option") {
+                            selectDisabled(action.option?.value, true,'champ')
+                          }
 
-                          //value는 방금 선택 한 값이 들어 가있는데? json으로 파싱 히면 값을 구할 수 있다 방금 선택 한값
-                          //TODO 챔피언 목록을 별도로 지정 해 놓고 그걸 한번에 사용 하는걸로 가면 편할꺼 같다 해야 될 일
-                          //TODO 이거 지금 해야 될꺼 같은데 ㅋ
-                          // 위에 생각 간거 챔피언 목록을 별도 저장 해 놓고 챔프 선택 하는 창에서 선택 할때 마다 지우거나 추가 하거나 또는 disabled를 해 보기
-
-                          // 아래는 중복된 챔피언 선택 못 하게 하기, 블루, 레드 밴 및 페널티 챔프
-                          const selectedValues = option.map((v) => v.value)                                                    
-                          const redBanChamp = getValues("redTeam.banChamp")
-                          const redPenaltyChampChk = getValues("redTeam.penaltyChamp")
-                          const bluePenaltyChamp = getValues("blueTeam.penaltyChamp")
-                          const AllChamp = [...redBanChamp,...redPenaltyChampChk, ...bluePenaltyChamp, ...selectedValues]
-                          const result = AllChamp.filter((item, index) => AllChamp.indexOf(item) !== index)
-
-
-
-
-                          if(result.length > 0) {
-                            alert("밴 및 패널티 챔프와 중복");
-                            //const resetChamp = selectedValues.filter((v) => v!==JSON.stringify(value[0]))
-                            onChange(value); //선택한 요소를 제외 하고 다시 리턴 시킨다
-                          } else {
-                            //console.log('===밴 챔프 값 셋팅==')
-                            onChange(selectedValues);
-                          }                      
+                          // 한꺼번에 지워 지는거라 배열로 지워야 된다
+                          if(action.action==="clear") {
+                              action.removedValues.map((v) => {
+                                selectDisabled(v.value, false,'champ');
+                              })
+                          }
+                          onChange(selectedValues);
+   
                         }}
                       />
                     )}
                   />
                 </Form.Group>    
-
+                {/* 블루 팀 페널티 */}
                 <Form.Group controlId="formGridBluePenaltyChamp" className="mt-2"> 
                     <Form.Label> 페널티 챔프</Form.Label>
                     {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
@@ -683,95 +740,35 @@ const GamePlay = () => {
                           // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
                           ref={ref}
                           placeholder="블루 페널티 챔프 선택"
+                          value={gameChampList?.filter((option) =>getValues('blueTeam.penaltyChamp')?.includes(option.value))}
                           onChange={(option, action) => {
-                            const selectedValues = option.map((v) => v.value);
-                            onChange(selectedValues);
-                          }}
-                        />
-                      )}
-                    />
-                  </Form.Group>                                                          
-              </Col>
-              <Col>
-                  <h3 className="text-center">레드팀</h3>
-                  <Form.Group controlId="formGridRedTeamCode">
-                    <Form.Select {...register("redTeam.teamCode")} onChange={redTeamCodeChange}>
-                    <option key={0} value={0}>레드팀 을 선택 하세요</option>            
-                    {
-                      gameTeamDataList?.map((item, index) => (
-                        <option key={index} value={item.teamCode}>{item.teamName}</option>
-                      ))
-                    }
-                    </Form.Select>
-                  </Form.Group>                
-                  <Form.Group controlId="formGridRedBanChamp" className="mt-2"> 
-                    <Form.Label> 밴 챔프</Form.Label>
-                    {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
-                    {/* //TODO 선택 하면 다른팀 데이터도 같이 disabled 가능 한지 확인 */}
-                    <Controller
-                      control={control}
-                      name="redTeam.banChamp"
-                      render={({ field: { onChange, value, ref, name } }) => (  
-                        <Select
-                          name="formGridRedBanChamp"
-                          isClearable
-                          isMulti
-                          options={gameChampList}
-                          styles={{
-                            container: (base) => ({
-                              ...base,
-                              backgroundColor: "#FF5630",
-                              padding: 2,
-                            }),
-                          }}
-                          // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
-                          ref={ref}
-                          placeholder="레드 밴 챔프 선택"
-                          onChange={(option, action) => {
-                            const selectedValues = option.map((v) => v.value);
-                            onChange(selectedValues);
-                          }}
-                        />
-                      )}
-                    />
-                  </Form.Group>       
+                            const selectedValues = option.map((v) => v.value)   
 
-                  <Form.Group controlId="formGridRedPenaltyChamp" className="mt-2"> 
-                    <Form.Label> 페널티 챔프</Form.Label>
-                    {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
-                    {/* //TODO 선택 하면 다른팀 데이터도 같이 disabled 가능 한지 확인 */}
-                    <Controller
-                      control={control}
-                      name="redTeam.penaltyChamp"
-                      render={({ field: { onChange, value, ref, name } }) => (  
-                        <Select
-                          name="formGridRedPenaltyChamp"
-                          isClearable
-                          isMulti
-                          options={gameChampList}
-                          styles={{
-                            container: (base) => ({
-                              ...base,
-                              backgroundColor: "#FF5630",
-                              padding: 2,
-                            }),
-                          }}
-                          // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
-                          ref={ref}
-                          placeholder="레드 페널티 챔프 선택"
-                          onChange={(option) => {
-                            const selectedValues = option.map((v) => v.value);
+                            if(action.action==="remove-value") {
+                              //이건 삭제시 본인것만 푼다
+                              selectDisabled(action.removedValue.value, false,'champ')
+                            }
+                            if(action.action==="select-option") {
+                              selectDisabled(action.option?.value, true,'champ')
+                            }
+                            if(action.action==="clear") {
+                              //action.removedValues.value
+                              gameChampList.map((e) => {
+                                action.removedValues.map((v) => {
+                                  selectDisabled(v.value, false,'champ');
+                                  //e.value===v.value ?   e.isDisabled=true :  e.isDisabled=e.isDisabled
+                                })
+                              })
+                            }                            
                             onChange(selectedValues);
                           }}
                         />
                       )}
                     />
-                  </Form.Group>                                   
-              </Col>
-            </Row>
-            <Row className="mb-3 mt-2">
-              <Col>
-                  <ListGroup>
+                </Form.Group>  
+                {/* 블루 팀 게임 결과 */} 
+                <Form.Group controlId='formBlueTeamGameData' className='mt-3'>
+                <ListGroup>
                     {
                       positionData.map((item, index) => (
                         <ListGroup.Item key={index}>
@@ -780,7 +777,7 @@ const GamePlay = () => {
                               <Form.Check // prettier-ignore
                                 key={item.gameLine}
                                 type="switch"
-                                id={`custom-switch-blue-${item.gameLine}`}
+                                id={`switch-blue-${item.gameLine}`}
                                 label={item.gameLineName}
                                 value={item.gameLine}
                                 {...register(`blueTeam.teamPositon.${index}`)}
@@ -788,46 +785,38 @@ const GamePlay = () => {
                               />
                             </Col>               
                             <Col>
-                              <Form.Group as={Col} controlId={`formGridBlueTeamUser${index}`}>                   
+                              <Form.Group controlId={`formGridBlueTeamUser${index}`}>                   
                                 <Controller
                                   control={control}
                                   name={`blueTeam.teamUser.${index}`}
-                                  defaultValue=''
                                   render={({ field: { onChange, value, ref, name } }) => (  
                                     <Select
-                                      //inputId={`blueTeam.teamUser.${index}`}
-                                      //autoFocus
                                       name={`formGridBlueTeamUser${index}`}
                                       isClearable
                                       options={gameBlueTeamList}
-                                      //defaultValue = {gameBlueTeamList}
                                       // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
                                       ref={ref}
                                       value={gameBlueTeamList?.filter((option) => option.value === value)}
                                       placeholder="블루 팀원 선택"
                                       onChange={(option, action) => {
+
                                         //액션이 클리어면 초기화
                                         const blueTeamUser = getValues("blueTeam.teamUser");
+
+                                        console.log(action);
+                                        if(action.action==="select-option") {
+                                          //selectDisabled(option?.value, true, 'user')
+                                          gameBlueTeamList?.map((e) => {if(e.value===option?.value)  e.isDisabled=true})
+                                        }
+                                        //액션이 클리어면 초기화                                        
                                         if(action.action === 'clear') {
                                           resetField(name)
-                                          blueTeamUser.splice(index,1);
-                                          //gamePlaySubmit.blueTeam.teamUser.splice(index,1)
-                                          
+                                          blueTeamUser.splice(index,1);  
+                                          gameBlueTeamList?.map((e) => {if(e.value===action.removedValues[0].value)  e.isDisabled=true})
                                           return false
-                                        }
-                                        //처음에 값이  undefined 값이라 빈값으로 변경                                  
-                                        const paraValue = option?.value===undefined ? '' : option?.value
-                                        //현재 입력된 user를 가져옴 본인 index 빼고 중복 되는게 있는지 검사
-                                        const blueTemaUserChk = blueTeamUser.filter((a,i) => i !==index).includes(paraValue);
-                                        if(blueTemaUserChk) {
-                                            alert("블루팀 "+option?.label+" 중복 선택")
-                                            //중복이라서 unregister 함
-                                            unregister([`blueTeam.teamUser.${index}`]) 
-                                            return false
-                                        } else {
-                                            onChange(option?.value)
-                                        }
-                                    
+                                        }                                        
+                                        onChange(option?.value)                             
+              
                                       }}
                                     />
                                   )}
@@ -837,15 +826,30 @@ const GamePlay = () => {
                           </Row>
                           <Row className='mt-2'>
                             <Col>
-                                <Form.Label>{item.gameLineName} 챔프</Form.Label>
+                                <Form.Group as={Row} controlId="formFile">
+                                  <Col xxl={5}>
+                                    <Form.Label>{item.gameLineName} 챔프</Form.Label>
+                                  </Col>
+                                  <Col xxl={7}>
+                                    <Form.Check // prettier-ignore
+                                      key={`mvp-${item.gameLine}`}
+                                      type="radio"
+                                      id={`blue-mvp-${item.gameLine}`}
+                                      label={`MVP(${item.gameLineName})`}
+                                      value="Y"
+                                      disabled={!isRsChecked}
+                                      {...register('blueTeam.teamMvp')}
+                                      //onChange={(e)=>aaaaa(e, index)}                                      
+                                    />
+                                   </Col>
+                                </Form.Group>                            
+                                                             
                                 {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
                                 <Controller
                                   control={control}
                                   name={`blueTeam.champEng.${index}`}
                                   render={({ field: { onChange, value, ref, name} }) => (  
                                     <Select
-                                      //inputId={`blueTeam.champEng.${index}`}
-                                      //autoFocus
                                       name={`formGridBlueChampEng${index}`}
                                       isClearable
                                       isDisabled={!isRsChecked}
@@ -856,27 +860,22 @@ const GamePlay = () => {
                                       value={gameChampList?.filter((option) => option.value === value)}
                                       placeholder="블루 챔프 선택"
                                       onChange={(option, action) => {
+
                                         const blueTeamChamp = getValues("blueTeam.champEng")
-                                        //액션이 클리어면 초기화
+                                        //아이템 선택
+                                        if(action.action==="select-option") {
+                                          selectDisabled(option?.value, true,'champ')
+                                        }
+
+                                        //액션이 클리어면 초기화                                        
                                         if(action.action === 'clear') {
                                           resetField(name)
-                                          blueTeamChamp.splice(index,1);                                          
+                                          blueTeamChamp.splice(index,1);  
+                                          selectDisabled(action.removedValues[0].value, false,'champ')
                                           return false
-                                        }
-                                        //처음에 값이  undefined 값이라 빈값으로 변경                                  
-                                        const paraValue = option?.value===undefined ? '' : option?.value
-                                        //현재 입력된 user를 가져옴 본인 index 빼고 중복 되는게 있는지 검사
-                                        const blueChampChk = blueTeamChamp.filter((a,i) => i !==index).includes(paraValue);
-                                        const redChampChk = getValues("redTeam.champEng").includes(paraValue); //레드팀일 경우 블루팀챔프모두 검색
-                                        if(blueChampChk || redChampChk) {
-                                            alert("블루팀 "+option?.label+" 챔프 중복 선택")
-                                            //중복이라서 unregister 함
-                                            unregister([`blueTeam.champEng.${index}`]) 
-                                            return false
-                                        } else {
-                                            onChange(option?.value)
-                                        }
-                                    
+                                        }                                        
+                                        onChange(option?.value)
+
                                       }}
                                     />
                                   )}
@@ -929,10 +928,184 @@ const GamePlay = () => {
 
                       ))
                     }
-                  </ListGroup>                      
+                  </ListGroup>  
+                </Form.Group>                                                                       
               </Col>
+              {/* 레드팀 시작 */}
               <Col>
+                  {/* 레드 팀 선택 */}
+                <Form.Group controlId="formGridRedTeamCode">
+                  <Controller
+                    control={control}
+                    name="redTeam.teamCode"
+                    render={({ field: { onChange, value, ref, name } }) => (  
+                      <Select
+                        name="formGridRedTeamCode"
+                        options={gameTeamDataList}
+                        styles={{
+                          container: (base) => ({
+                            ...base,
+                            backgroundColor: "#FF5630",
+                            padding: 2,
+                          }),
+                        }}                        
+                        // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
+                        ref={ref}
+                        placeholder="레드 팀 선택"
+                        value={gameTeamDataList?.filter((v) => v.teamCode === value)}
+                        getOptionValue={(option) => option.teamCode} // changes here!!!
+                        onChange={(option, action) => {
+                          
+                          //const blueTeamChamp = getValues("blueTeam.champEng")
+                          //아이템 선택
+                        
+                           //console.log("value:"+value); //이전에 선택된 값을 가지고 있는다
+                              //console.log("option:"+JSON.stringify(option));
+                          if(action.action==="select-option") {
+                            //console.log("option-value:"+option?.teamCode)
+                            //gameTeamDataList?.map((e) => {if(e.teamCode===option?.teamCode)  console.log(option?.value)})
+                            selectDisabled(value, false, 'team') //이전에 선택 된 값은 false
+                            selectDisabled(option?.teamCode, true, 'team')
+                            //console.log(gameTeamDataList);                            
+                          }
 
+                          //액션이 클리어면 초기화                                        
+                          if(action.action === 'clear') {
+                            selectDisabled(action.removedValues[0].teamCode, false, 'team')                                        
+                            //return false
+                          }          
+                          const teamName = option?.teamName===undefined?'':option?.teamName
+                          const teamCode = option?.teamCode===undefined?'':option?.teamCode
+                          redTeamCodeChange(teamName, teamCode)
+                          onChange(option?.teamCode)
+
+                          /*                           
+                          if(action.action==="select-option") {
+                            selectDisabled(option?.value, true,'team')
+                          }
+
+                          //console.log(action)
+                          //액션이 클리어면 초기화                                          
+                          if(action.action === 'clear') {
+                            selectDisabled(action.removedValues[0].value, false,'team')                                        
+                            //return false
+                          }          
+                          onChange(option?.value===undefined ? '0' : option?.value) 
+                          //onChange(option?.value)
+                          //onChange(selectedValues); */
+   
+                        }}
+                      />
+                    )}
+                  />
+                </Form.Group>                    
+                {/*  레드 밴 챔프 */}           
+                <Form.Group controlId="formGridRedBanChamp" className="mt-2"> 
+                  <Form.Label> 밴 챔프</Form.Label>
+                  {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
+                  {/* //TODO 선택 하면 다른팀 데이터도 같이 disabled 가능 한지 확인 */}
+                  <Controller
+                    control={control}
+                    name="redTeam.banChamp"
+                    render={({ field: { onChange, value, ref, name } }) => (  
+                      <Select
+                        name="formGridRedBanChamp"
+                        isClearable
+                        isMulti
+                        options={gameChampList}
+                        styles={{
+                          container: (base) => ({
+                            ...base,
+                            backgroundColor: "#FF5630",
+                            padding: 2,
+                          }),
+                        }}
+                        // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
+                        ref={ref}
+                        placeholder="레드 밴 챔프 선택"
+                        value={gameChampList?.filter((option) =>getValues('redTeam.banChamp')?.includes(option.value))}
+                        onChange={(option, action) => {
+
+                          //선택한거 사용 못하게 만들려고 한다. 이거 하나로 다 될려나?
+                          //이건 이중배열 
+                          //TODO 이거 한개로 만들어서 함수 호출 해보기
+                          const selectedValues = option.map((v) => v.value)                               
+                          
+                          if(action.action==="remove-value") {
+                            //이건 삭제시 본인것만 푼다
+                            selectDisabled(action.removedValue.value, false,'champ')
+                          }
+                          if(action.action==="select-option") {
+                            selectDisabled(action.option?.value, true,'champ')
+                          }
+                          if(action.action==="clear") {
+                            gameChampList.map((e) => {
+                              action.removedValues.map((v) => {
+                                selectDisabled(v.value, false,'champ');
+                              })
+                            })
+                          }                            
+
+                          onChange(selectedValues);
+
+                        }}
+                      />
+                    )}
+                  />
+                </Form.Group>       
+                {/*  레드  페널티 챔프 */}
+                <Form.Group controlId="formGridRedPenaltyChamp" className="mt-2"> 
+                  <Form.Label> 페널티 챔프</Form.Label>
+                  {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
+                  {/* //TODO 선택 하면 다른팀 데이터도 같이 disabled 가능 한지 확인 */}
+                  <Controller
+                    control={control}
+                    name="redTeam.penaltyChamp"
+                    render={({ field: { onChange, value, ref, name } }) => (  
+                      <Select
+                        name="formGridRedPenaltyChamp"
+                        isClearable
+                        isMulti
+                        options={gameChampList}
+                        styles={{
+                          container: (base) => ({
+                            ...base,
+                            backgroundColor: "#FF5630",
+                            padding: 2,
+                          }),
+                        }}
+                        // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
+                        ref={ref}
+                        placeholder="레드 페널티 챔프 선택"
+                        value={gameChampList?.filter((option) =>getValues('redTeam.penaltyChamp')?.includes(option.value))}
+                        onChange={(option, action) => {
+
+                          const selectedValues = option.map((v) => v.value)           
+
+                          if(action.action==="remove-value") {
+                            //이건 삭제시 본인것만 푼다
+                            selectDisabled(action.removedValue.value, false,'champ')
+                          }
+                          if(action.action==="select-option") {
+                            selectDisabled(action.option?.value, true,'champ')
+                          }
+                          if(action.action==="clear") {
+                            //action.removedValues.value
+                            gameChampList.map((e) => {
+                              action.removedValues.map((v) => {
+                                selectDisabled(v.value, false,'champ');
+                                //e.value===v.value ?   e.isDisabled=true :  e.isDisabled=e.isDisabled
+                              })
+                            })
+                          }                            
+                          onChange(selectedValues);
+                        }}
+                      />
+                    )}
+                  />
+                </Form.Group>  
+                {/* 레드팀 팀 게임 결과 */}            
+                <Form.Group controlId='formRedTeamGameData' className='mt-3'>
                   <ListGroup>
                     {
                       positionData.map((item, index) => (
@@ -953,58 +1126,66 @@ const GamePlay = () => {
                             <Col>
                               <Form.Group as={Col} controlId={`formGridRedTeamUser${index}`}>
                                 {/* TODO unregister은 등록된 값을 빈값으로 초기화 함 완전 지울수 있는 방법 찾기 */}
-                              <Controller
-                                control={control}
-                                name={`redTeam.teamUser.${index}`}
-                                defaultValue=''
-                                render={({ field: { onChange, value, ref, name } }) => (  
-                                  <Select
-                                    name={`formGridRedTeamUser${index}`}
-                                    isClearable
-                                    options={gameRedTeamList}
-                                    // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
-                                    ref={ref}
-                                    value={gameRedTeamList?.filter((option) => option.value === value)}
-                                    placeholder="레드 팀원 선택"                                    
-                                    onChange={(option, action) => {
-                                      const redTemaUser = getValues("redTeam.teamUser")
-                                      //액션이 클리어면 초기화
-                                      if(action.action === 'clear') {
-                                        resetField(name)
-                                        redTemaUser.splice(index,1); 
-                                        //.splice(1,1);//banana 객체 삭제
-                                        return false
-                                      }
-                                      //처음에 값이  undefined 값이라 빈값으로 변경                                  
-                                      const paraValue = option?.value===undefined ? '' : option?.value
-                                      //현재 입력된 user를 가져옴 본인 index 빼고 중복 되는게 있는지 검사
-                                      const redTemaUserChk = redTemaUser.filter((a,i) => i !==index).includes(paraValue);
-                                      if(redTemaUserChk) {
-                                          alert("레드팀 "+option?.label+" 중복 선택")
-                                          //중복이라서 unregister 함
-                                          unregister([`redTeam.teamUser.${index}`]) 
+                                <Controller
+                                  control={control}
+                                  name={`redTeam.teamUser.${index}`}
+                                  render={({ field: { onChange, value, ref, name } }) => (  
+                                    <Select
+                                      name={`formGridRedTeamUser${index}`}
+                                      isClearable
+                                      options={gameRedTeamList}
+                                      // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
+                                      ref={ref}
+                                      value={gameRedTeamList?.filter((option) => option.value === value)}
+                                      placeholder="레드 팀원 선택"                                          
+                                      onChange={(option, action) => {
+
+                                        const redTemaUser = getValues("redTeam.teamUser")
+
+                                          if(action.action==="select-option") {
+                                          selectDisabled(option?.value, true,'user')
+                                        }
+
+                                        //액션이 클리어면 초기화                                        
+                                        if(action.action === 'clear') {
+                                          resetField(name)
+                                          redTemaUser.splice(index,1);  
+                                          selectDisabled(action.removedValues[0].value, false,'user') 
                                           return false
-                                      } else {
-                                          onChange(option?.value)
-                                      }
-                                  
-                                    }}
-                                  />
-                                )}
-                              />                
+                                        }
+                                        onChange(option?.value)
+                                    
+                                      }}
+                                    />
+                                  )}
+                                />                
                               </Form.Group>   
 
                             </Col>                                                                             
                           </Row>
                           <Row className='mt-2'>
                             <Col>
-                                  <Form.Label>{item.gameLineName} 챔프</Form.Label>
+                                  <Form.Group as={Row} controlId="formFile">
+                                    <Col xxl={5}>
+                                      <Form.Label>{item.gameLineName} 챔프</Form.Label>
+                                    </Col>
+                                    <Col xxl={7}>
+                                      <Form.Check // prettier-ignore
+                                        key={`red-mvp-${item.gameLine}`}
+                                        type="radio"
+                                        id={`red-mvp-${item.gameLine}`}
+                                        label={`MVP(${item.gameLineName})`}
+                                        value="Y"
+                                        {...register('redTeam.teamMvp')}
+                                        //onChange={(e)=>aaaaa(e, index)}                                      
+                                      />
+                                    </Col>
+                                  </Form.Group>
                                   {/* //TODO 컴포넌트로 만들어서 적용 한번 시켜 보기 컴포넌트 완료 되면 적용 할때 많음  Select Css로 적용 해보기 */}
                                   {/* //TODO 선택 하면 다른팀 데이터도 같이 disabled 가능 한지 확인 */}
                                   <Controller
                                     control={control}
                                     name={`redTeam.champEng.${index}`}
-                                    defaultValue=''
                                     render={({ field: { onChange, value, ref, name } }) => (  
                                       <Select
                                         name={`formGridRedChampEng${index}`}
@@ -1018,7 +1199,21 @@ const GamePlay = () => {
                                         onChange={(option, action) => {
 
                                           const redTeamChamp = getValues("redTeam.champEng")
-                                          //액션이 클리어면 초기화
+
+                                          //아이템 선택
+                                          if(action.action==="select-option") {
+                                            selectDisabled(option?.value, true,'champ')
+                                          }
+  
+                                          //액션이 클리어면 초기화                                        
+                                          if(action.action === 'clear') {
+                                            resetField(name)
+                                            redTeamChamp.splice(index,1);  
+                                            selectDisabled(action.removedValues[0].value, false,'champ')
+                                            return false
+                                          }                                        
+                                          onChange(option?.value)                                          
+/*                                           //액션이 클리어면 초기화
                                           if(action.action === 'clear') {
                                             resetField(name)
                                             redTeamChamp.splice(index,1);                                           
@@ -1038,7 +1233,7 @@ const GamePlay = () => {
                                               return false
                                           } else {
                                               onChange(option?.value)
-                                          }
+                                          } */
                                       
                                         }}
                                       />
@@ -1089,8 +1284,8 @@ const GamePlay = () => {
 
                       ))
                     }
-                  </ListGroup>                 
-  
+                  </ListGroup>  
+                </Form.Group>
               </Col>
             </Row>
             <div className="d-grid gap-2 mt-2">

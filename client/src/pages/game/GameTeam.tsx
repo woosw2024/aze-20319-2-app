@@ -298,8 +298,10 @@ const GameTeam = () => {
   
   // 함수로 루프를 돌린다
   const rendering = (teamUser:string) => {
+    //console.log('==rendering==') 
+
     const result = [];
-    const teamUserArray = teamUser.split('|');
+    const teamUserArray = (teamUser || "").split('|');
     for (let i = 0; i < teamUserArray.length; i++) {
       result.push(<div key={i}>{teamUserArray[i]}</div>);
     }

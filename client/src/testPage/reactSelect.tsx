@@ -52,7 +52,8 @@ const reactSelect = () => {
                        console.log(e);
                      }} */
                      onChange={(option, action) => {
-
+                      //action 에 속성이 있다 그리고 value를 가져 올수 있다 multi와 단일등 action 에 따라 객체 속성 달라 진다
+                      //여러개의 select 일경우 객체 값이 자동 적용 된다
                       const selectedValues = option.map((v) => v.value);
                       
 /*                    
