@@ -1,7 +1,10 @@
+import { useRef } from "react";
 import { Col, Row } from "react-bootstrap";
-import { useForm, useWatch, Control, Controller } from "react-hook-form";
+import { useForm, useWatch, Control, Controller, useController, UseControllerProps } from "react-hook-form";
 import Select from "react-select";
-import { isDisabled } from '@testing-library/user-event/dist/utils';
+//import ChildSelect from "./testPage/ChildSelect";
+
+
 
 type FormValues = {
   firstName: string;
@@ -36,112 +39,54 @@ function IsolateReRender({ control }: { control: Control<FormValues> }) {
   return <div>{firstName}</div>;
 }
 
+// 컨트롤러를 이용 할 경우에는 다른 페이지는 못 불러 온다 같은 페이지에서 사용 해야 된다
+const CustomInputHooked = (props: UseControllerProps<FormValues>) => {
+  const { field, fieldState } = useController(props);
+  return (
+    <div>
+      <Select
+        name={field.name}
+        isClearable
+        isMulti
+        options={selecColor}
+        placeholder="레드 챔프 선택"
+        onChange={(option, action) => {
+        //action 에 속성이 있다 그리고 value를 가져 올수 있다 multi와 단일등 action 에 따라 객체 속성 달라 진다
+        //여러개의 select 일경우 객체 값이 자동 적용 된다
+          const selectedValues = option.map((v) => v.value);
+          field.onChange(selectedValues); 
+        }}
+      />
+    </div>
+  );
+};
+
 export default function App() {
   console.log('랜더링'); 
-  const { register, control, handleSubmit, getValues } = useForm<FormValues>();
-  const onSubmit = handleSubmit((data) => console.log(data));
 
+  const selectRef = useRef(null);
+  const { register, control, handleSubmit } = useForm<FormValues>({
+    mode:'onSubmit',
+    defaultValues: { firstName: '', lastName: '', blueBanChamp:[], redBanChamp:[]}
+  });
+  const onSubmit = handleSubmit((data) => {
+    //Select.ref.current.clearValue()
+    //resetField('blueBanChamp').clearValue()
+    //ref.Select.clearValue()
+    console.log(data)
+    selectRef.current = null;
+    console.log(data)
+  });
+
+  
   return (
     <form onSubmit={onSubmit}>
 
-    <Row>
-      <Col>
-            <Controller
-                control={control}
-                name="blueBanChamp"
-                render={({ field: { onChange, value, ref, name } }) => (  
-                  <Select
-                    name="blueBanChamp"
-                    isClearable
-                    isMulti
-                    options={selecColor}
-                    // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
-                    ref={ref}
-                    //value={value ? value : []}
-                    //value={selecColor.map((v) => ({ v, label: v }))}
-                    placeholder="레드 챔프 선택"
-                    //onChange={onChange}
-/*                             onFocus={(e) => {
-                      console.log(e);
-                    }} */
-                    onChange={(option, action) => {
+ 
+      <CustomInputHooked control={control} name="blueBanChamp"/>          
 
-
-                      const selectedValues = option.map((v) => v.value);
-                      if(action.action==="remove-value") {
-                        console.log("remove-value:"+option);
-                      }       
-                      
-                      console.log(action)
-                      
-                      //console.log(value.entries()); 이거 안됨
-/*                       console.log(JSON.stringify(value));
-                      console.log(Array.isArray(value));
-                      let aaaa = JSON.stringify(value) */
-/*                       option.map((v) => {
-                          console.log(v.value);
-                          selecColor.map((e) => {
-                            e.value===v.value ?  e.isDisabled=true :  e.isDisabled=false
-                          })
-                      }) */
-
-                      //모두 true 만든 후에 다시 disabled 한다
-                      //오류 모드다 false를 하면 안된다 여러개라 여러 군데에서 사용 해야 된다
-                      //A만 사용 하면 되는데 B에서 또 호출 하면 또 다 false가 되어 버린다
-                      selecColor.map((e) => {e.isDisabled = false})
-                      selecColor.map((e) => {
-                        option.map((v) => {
-                          e.value===v.value ?   e.isDisabled=true :  e.isDisabled=e.isDisabled
-                        })
-                      })
-                      console.log(selecColor)                      
-
-                      //const disabledChange= selecColor.map((e) => {e.isDisabled = true})
-                      //console.log(disabledChange)
-    /*                   const aaa = {selecColor, 'isDisabled':true}
-                      console.log(aaa) */
-
-                      //console.log(selectedValues);
-
-                      if(action.action !== 'remove-value') {
-                        //console.log(option);
-                        //console.log(getValues('blueBanChamp'));
-                        onChange(selectedValues);                                
-                      } else {
-                        const aaaa = selectedValues.filter((v) => v!==JSON.stringify(value[0]))
-
-                        console.log(aaaa); //삭제한 데이터를 가져 온다
-                      }                 
-                      
-                    }}
-                  />
-                )}
-              />        
-            </Col>
-            <Col>
-                <Controller
-                        control={control}
-                        name="redBanChamp"
-                        render={({ field: { onChange, value, ref, name } }) => (  
-                          <Select
-                            name="redBanChamp"
-                            isClearable
-                            isMulti
-                            options={selecColor}
-                            // 참조를 전달해줌으로써 hook form이랑 select input이랑 연결 (전달시 에러가 있을시 자동으로 해당 인풋으로 포커스해줌)
-                            ref={ref}
-                            //value={value ? value : []}
-                            //value={gameChampList?.filter((option) => option.value === value)}
-                            placeholder="블루 챔프 선택"
-                            onChange={onChange}
-/*                             onChange={(option, action) => {
-                              onChange(option.value)
-                            }} */
-                          />
-                        )}
-                      />  
-</Col>                                            
-</Row>                            
+      
+                     
       <input {...register("firstName")} />
       <input {...register("lastName")} />
       <IsolateReRender control={control} />
