@@ -21,8 +21,7 @@ const selecColor:color[] = [
   {label:'푸른색',value:'푸른색', isDisabled:false},
   {label:'간색',value:'간색', isDisabled:false}
 ]
-
-
+//TODO  부모창에서 control을 넘겨서 관리 할 수 있는거 만들어 보기 너무 어렵네 이거
 const ChildSelect = (props:UseControllerProps) => {
 
   const { field, fieldState } = useController(props);

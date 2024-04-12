@@ -7,7 +7,8 @@ export type gamePlaySubmit = {
      setNum:string;
      GameTime:string;
      gameDate:string;
-     gameRs:boolean
+     gameRs:boolean;
+     teamWin:string     
    }
    blueTeam : TeamDetail
    redTeam : TeamDetail
@@ -27,6 +28,7 @@ export type gamePlaySubmit = {
    penaltyChamp:string[];
    teamMvp:string; 
    assignFlag:string[];
+
  }
  
 
